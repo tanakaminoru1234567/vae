@@ -7,24 +7,26 @@ from chainer.functions.math import sum, exponential
 
 class SeqVAE(chainer.Chain):
 
-    def __init__(self, w_input, n_latent, n_h, n_h2):
+    def __init__(self, w_input, n_latent, n_filter, n_h2):
         super(SeqVAE, self).__init__()
         self.w_input = w_input
-        n_in = w_input * w_input
+        self.n_filter = n_filter
+        self.w_hidden = w_input - 1
+        n_hidden = n_filter * self.w_hidden * self.w_hidden
         with self.init_scope():
             # encoder
-            self.le1 = L.Linear(n_in, n_h)
-            self.le2 = L.Linear(n_h, 2 * n_latent)
+            self.le1 = L.Convolution2D(1, n_filter, ksize=2)
+            self.le2 = L.Linear(n_hidden, 2 * n_latent)
             # decoder
-            self.ld1 = L.Linear(n_latent, n_h)
-            self.ld2 = L.Linear(n_h, n_in)
+            self.ld1 = L.Linear(n_latent, n_hidden)
+            self.ld2 = L.Deconvolution2D(n_filter, n_filter, ksize=2)
+            self.ld3 = L.Convolution2D(n_filter, 1, ksize=1)
             # transion
             self.lt1 = L.Linear(n_latent, n_h2)
             self.lt2 = L.Linear(n_h2, 2 * n_latent)
 
     def encode(self, x):
         # h1 = F.leaky_relu(self.le1(x))
-        x = x.reshape(len(x), -1)
         h1 = F.relu(self.le1(x))
         h2 = self.le2(h1)
         mu, in_var = F.split_axis(h2, 2, axis=1)
@@ -33,11 +35,13 @@ class SeqVAE(chainer.Chain):
     def decode(self, z, sigmoid=False):
         # h1 = F.leaky_relu(self.ld1(z))
         h1 = F.relu(self.ld1(z))
-        h2 = self.ld2(h1)
+        h1 = F.reshape(h1, (-1, self.n_filter, self.w_hidden, self.w_hidden))
+        h2 = F.relu(self.ld2(h1))
+        h3 = self.ld3(h2)
         if sigmoid:
-            return F.sigmoid(h2)
+            return F.sigmoid(h3)
         else:
-            return h2
+            return h3
 
     def transition(self, z):
         # h1 = F.leaky_relu(self.lt1(z))
@@ -50,7 +54,6 @@ class SeqVAE(chainer.Chain):
 
         def lf(xs):
             T, batchsize = xs.shape[:2]
-            xs = xs.reshape(T, batchsize, -1)
             self.loss = 0.
             self.losses = [0.] * T
             self.l_x = [0.] * T

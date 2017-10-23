@@ -3,12 +3,17 @@ import chainer
 from chainer import cuda, optimizers, serializers
 
 import data
-import net
 import config
 
 conf = config.Config()
 
-model = net.SeqVAE(conf.w*conf.w, conf.n_latent, conf.n_hidden, conf.n_hidden)
+if conf.conv:
+    import conv_net as net
+    model = net.SeqVAE(conf.w, conf.n_latent, conf.n_filter, conf.n_hidden)
+else:
+    import net
+    model = net.SeqVAE(conf.w, conf.n_latent, conf.n_hidden, conf.n_hidden)
+
 if conf.gpu >= 0:
     cuda.get_device_from_id(conf.gpu).use()
     model.to_gpu()

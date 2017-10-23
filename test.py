@@ -6,7 +6,6 @@ import chainer.functions as F
 from collections import defaultdict
 
 import data
-import net
 import config
 
 conf = config.Config()
@@ -20,7 +19,13 @@ def set_no_tick(ax):
     ax.tick_params(axis='both', which='both', length=0)
 
 
-model = net.SeqVAE(conf.w*conf.w, conf.n_latent, conf.n_hidden, conf.n_hidden)
+if conf.conv:
+    import conv_net as net
+    model = net.SeqVAE(conf.w, conf.n_latent, conf.n_filter, conf.n_hidden)
+else:
+    import net
+    model = net.SeqVAE(conf.w, conf.n_latent, conf.n_hidden, conf.n_hidden)
+
 serializers.load_npz(conf.model_name, model)
 if conf.gpu >= 0:
     cuda.get_device_from_id(conf.gpu).use()
@@ -59,11 +64,11 @@ fig, axes = plt.subplots(5, conf.test_maxt, figsize=(10, 6))
 for i in range(conf.test_maxt):
     im0 = axes[0, i].imshow(xs[i][0].data.reshape(conf.w, conf.w),
                             clim=(0.0, 1.0))
-    im1 = axes[1, i].imshow(dic['zs'][i][0].data.reshape(1, -1),
+    im1 = axes[1, i].imshow(dic['zs'][i][0].data.reshape(1, conf.n_latent),
                             clim=(-2.0, 2.0))
     im2 = axes[2, i].imshow(dic['xs_'][i][0].data.reshape(conf.w, conf.w),
                             clim=(0.0, 1.0))
-    im3 = axes[3, i].imshow(dic['gzs'][i][0].data.reshape(1, -1),
+    im3 = axes[3, i].imshow(dic['gzs'][i][0].data.reshape(1, conf.n_latent),
                             clim=(-2.0, 2.0))
     im4 = axes[4, i].imshow(dic['gxs'][i][0].data.reshape(conf.w, conf.w),
                             clim=(0.0, 1.0))
@@ -80,7 +85,7 @@ if conf.n_latent == 2:
     for i in range(4*(conf.w-1)):
         img = dataset.batch_square_with_latent(i, conf.n_plot_sample)
         img = np.array(img, dtype=np.float32)
-        mu, in_var = model.encode(img.reshape(conf.n_plot_sample, -1))
+        mu, in_var = model.encode(img)
         z = F.gaussian(mu, in_var)
         plt.plot(z.data[:, 0], z.data[:, 1], 'o', c=cols[i])
 elif conf.n_latent == 3:
@@ -90,7 +95,7 @@ elif conf.n_latent == 3:
     for i in range(4*(conf.w-1)):
         img = dataset.batch_square_with_latent(i, conf.n_plot_sample)
         img = np.array(img, dtype=np.float32)
-        mu, in_var = model.encode(img.reshape(conf.n_plot_sample, -1))
+        mu, in_var = model.encode(img)
         z = F.gaussian(mu, in_var)
         ax.scatter(z.data[:, 0], z.data[:, 1], z.data[:, 2], 'o', c=cols[i])
 plt.show()

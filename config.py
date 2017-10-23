@@ -18,6 +18,10 @@ class Config(object):
         self.tsize = 2
         # train print frequency
         self.print_freq = 10
+        # number of filters for convolution
+        self.n_filter = 4
+        # whether to use convolution model
+        self.conv = False
 
         # train batchsize
         self.batchsize = 32
@@ -31,7 +35,7 @@ class Config(object):
         # test batchsize
         self.test_batchsize = 1
         # saving model name
-        self.model_name = 'vae3.model'
+        self.model_name = 'vae4.model'
         # test showing max time step
         self.test_maxt = 9
         # test number of samples for showing latent variables' distribution

@@ -34,14 +34,14 @@ class Dataset(object):
 
     def batch_square_with_latent(self, z, batch_size):
         img = self.map_square_with_latent(z)
-        return np.ones([batch_size, self.w, self.w]) * img
+        return np.ones([batch_size, 1, self.w, self.w]) * img
 
     def genetate(self):
         imgs = np.zeros([self.n_seq, self.T, self.w, self.w])
         # [number of sequence, max time step of sequence, height, width]
         for n in range(self.n_seq):
             for t in range(self.T):
-                z = t % (4*(conf.w-1))
+                z = t % (4*(self.w-1))
                 img = self.map_square_with_latent(z)
                 imgs[n, t] = img
         with open(self.cache, 'wb') as f:
@@ -62,18 +62,14 @@ class Dataset(object):
         if tsize > self.T:
             raise ValueError('tsize is over T({})'.format(self.T))
 
-        samples = np.zeros([batch_size, tsize, self.w, self.w],
+        samples = np.zeros([batch_size, tsize, 1, self.w, self.w],
                            dtype=np.float32)
         for i in np.random.permutation(batch_size):
             j = i % self.n_seq
             st = np.random.randint(self.T - tsize + 1)
-            samples[i, :tsize] = self.imgs[j, st:st+tsize]
+            samples[i, :tsize, 0] = self.imgs[j, st:st+tsize]
 
-        return np.transpose(samples, (1, 0, 2, 3)).reshape(tsize,
-                                                           batch_size, -1)
-
-    def flatten(self, x):
-        return np.reshape(x, (len(x), -1))
+        return np.transpose(samples, (1, 0, 2, 3, 4))
 
     def movie(self):
         z = 0
@@ -83,7 +79,7 @@ class Dataset(object):
             resized = cv2.resize(img, (conf.w_width, conf.w_width),
                                  interpolation=cv2.INTER_NEAREST)
             cv2.imshow('frame', resized)
-            z = (z + 1) % (4*(conf.w-1))
+            z = (z + 1) % (4*(self.w-1))
             if cv2.waitKey(1000) & 0xFF == ord('q'):
                 break
         cv2.destroyAllWindows()
