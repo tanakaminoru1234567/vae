@@ -5,7 +5,7 @@ import pickle
 
 import config
 
-conf = config.Config()
+conf = config.get_config()
 
 
 class Dataset(object):
@@ -19,7 +19,7 @@ class Dataset(object):
         self.back_ground = np.zeros([w, w])
         self.square = np.ones([sw, sw])
 
-        self.cache = 'move_square{}{}{}.pkl'.format(
+        self.cache = 'data/move_square{}{}{}.pkl'.format(
                                             w, n_seq, T)
 
     def map_square_with_latent(self, z):
@@ -89,3 +89,4 @@ if __name__ == '__main__':
     dataset = Dataset()
     dataset.initialize()
     print(dataset.sample(5, 2))
+    dataset.movie()
