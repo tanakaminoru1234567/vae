@@ -5,11 +5,12 @@ from chainer import cuda, optimizers, serializers
 import data
 import config
 
-conf = config.Config()
+conf = config.get_config()
 
 if conf.conv:
-    import conv_net as net
-    model = net.SeqVAE(conf.w, conf.n_latent, conf.n_filter, conf.n_hidden)
+    import cnet as net
+    model = net.SeqVAE(conf.w, conf.n_latent, conf.n_filter, conf.ksize,
+                       conf.stride, conf.n_hidden)
 else:
     import net
     model = net.SeqVAE(conf.w, conf.n_latent, conf.n_hidden, conf.n_hidden)
@@ -28,7 +29,7 @@ dataset.initialize()
 for i in range(conf.n_iter):
     xs = dataset.sample(conf.batchsize, conf.tsize)
     xs = chainer.Variable(xs)
-    optimizer.update(model.get_loss_func(), xs)
+    optimizer.update(model.get_loss_func(k=1, c=0.8), xs)
     if (i+1) % conf.print_freq == 0:
         print(('iteration:{:>4}, '
                'L_x:{:.3f}, L_z:{:.3f}, '
