@@ -1,4 +1,4 @@
-from config import config4 as cf
+from config import config1 as cf
 
 
 def get_config():
