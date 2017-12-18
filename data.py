@@ -10,17 +10,25 @@ conf = config.get_config()
 
 class Dataset(object):
 
-    def __init__(self, w=3, sw=1, n_seq=32, T=9):
+    def __init__(self, w=3, sw=1, n_seq=32, T=9, random=True):
         self.w = w
         self.sw = sw
+        self.ww = w * sw
         self.n_seq = n_seq
         self.T = T
 
-        self.back_ground = np.zeros([w, w])
+        self.back_ground = np.zeros([self.ww, self.ww])
         self.square = np.ones([sw, sw])
 
-        self.cache = 'data/move_square{}{}{}.pkl'.format(
-                                            w, n_seq, T)
+        if random:
+            r = 'r'
+            self.gen_traj = self.generate_random_trajectory
+        else:
+            r = ''
+            self.gen_traj = self.generate_trajectory
+
+        self.cache = 'data/move_square{}{}{}{}{}.pkl'.format(
+                                            w, sw, n_seq, T, r)
 
     def map_square_with_latent(self, z):
         n = conf.order[z]
@@ -28,24 +36,43 @@ class Dataset(object):
 
     def map_square_with_num(self, n):
         y, x = n // self.w, n % self.w
+        y, x = self.sw * y, self.sw * x
         img = self.back_ground.copy()
         img[y:y+self.sw, x:x+self.sw] = self.square
         return img
 
     def batch_square_with_latent(self, z, batch_size):
         img = self.map_square_with_latent(z)
-        return np.ones([batch_size, 1, self.w, self.w]) * img
+        return np.ones([batch_size, 1, self.ww, self.ww]) * img
 
     def genetate(self):
-        imgs = np.zeros([self.n_seq, self.T, self.w, self.w])
+        imgs = np.zeros([self.n_seq, self.T, self.ww, self.ww])
         # [number of sequence, max time step of sequence, height, width]
         for n in range(self.n_seq):
-            for t in range(self.T):
-                z = t % (4*(self.w-1))
-                img = self.map_square_with_latent(z)
-                imgs[n, t] = img
+            imgs[n] = self.gen_traj(self.T)
         with open(self.cache, 'wb') as f:
             pickle.dump(np.array(imgs), f)
+
+    def generate_trajectory(self, T):
+        traj = np.zeros([T, self.ww, self.ww])
+        for t in range(T):
+            z = t % (4*(self.w-1))
+            img = self.map_square_with_latent(z)
+            traj[t] = img
+        return traj
+
+    def generate_random_trajectory(self, T):
+        traj = np.zeros([T, self.ww, self.ww])
+        z = 0
+        for t in range(T):
+            z %= (4*(self.w-1))
+            img = self.map_square_with_latent(z)
+            traj[t] = img
+
+            if z == 2:
+                z += np.random.choice([-2, 0], p=[0.5, 0.5])
+            z += 1
+        return traj
 
     def load(self):
         with open(self.cache, 'rb') as f:
@@ -62,10 +89,10 @@ class Dataset(object):
         if tsize > self.T:
             raise ValueError('tsize is over T({})'.format(self.T))
 
-        samples = np.zeros([batch_size, tsize, 1, self.w, self.w],
+        samples = np.zeros([batch_size, tsize, 1, self.ww, self.ww],
                            dtype=np.float32)
-        for i in np.random.permutation(batch_size):
-            j = i % self.n_seq
+        for i, j in enumerate(np.random.permutation(batch_size)):
+            j %= self.n_seq
             st = np.random.randint(self.T - tsize + 1)
             samples[i, :tsize, 0] = self.imgs[j, st:st+tsize]
 
@@ -86,7 +113,8 @@ class Dataset(object):
 
 
 if __name__ == '__main__':
-    dataset = Dataset()
+    dataset = Dataset(T=4)
     dataset.initialize()
-    print(dataset.sample(5, 2))
-    dataset.movie()
+    # print(dataset.sample(10, 4))
+    # print(dataset.sample(5, 2))
+    # dataset.movie()
